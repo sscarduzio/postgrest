@@ -202,6 +202,8 @@
         
             <li><a href="#building-from-source">Building from Source</a></li>
         
+            <li><a href="#install-via-homebrew-mac-os-x">Install via Homebrew (Mac OS X)</a></li>
+        
             <li><a href="#installing-postgresql">Installing PostgreSQL</a></li>
         
     
@@ -214,21 +216,13 @@
 <p>The <a href="https://github.com/begriffs/postgrest/releases/latest">release page</a> has precompiled binaries for Mac OS X and 64-bit Ubuntu. Next extract the tarball and run the binary inside with no arguments to see usage instructions:</p>
 <pre><code class="sh"># Untar the release (available at https://github.com/begriffs/postgrest/releases/latest)
 
-$ tar zxf postgrest-0.2.11.1-osx.tar.xz
+$ tar zxf postgrest-0.2.12.0-osx.tar.xz
 
 # Try running it
-$ ./postgrest-0.2.11.1
+$ ./postgrest
 
 # You should see a usage help message
 </code></pre>
-
-<div class="admonition danger">
-    <p class="admonition-title">Deprecation Warning</p>
-
-    <p>The filename inside the tarball currently includes a version
-    number, but this will be removed in the next version for cleaner
-    post-extraction scripting.</p>
-</div>
 
 <div class="admonition warning">
     <p class="admonition-title">Invitation to Contribute</p>
@@ -237,11 +231,11 @@ $ ./postgrest-0.2.11.1
 
     <ul><li>Scientific Linux 6</li><li>CentOS</li><li>RHEL 6</li></ul>
 
-    Also it would be good to create packages for Homebrew, and apt.</p>
+    Also it would be good to create a package for apt.</p>
 </div>
 
 <p>We'll learn the meaning of the command line flags later, but here is a minimal example of running the app. It does all operations as user <code>postgres</code>, including for unauthenticated requests.</p>
-<pre><code class="sh">$ ./postgrest-0.2.11.1 -d dbname -U postgres --a postgres --v1schema public
+<pre><code class="sh">$ ./postgrest -d dbname -U postgres -a postgres --v1schema public
 </code></pre>
 
 <h3 id="building-from-source">Building from Source</h3>
@@ -263,6 +257,23 @@ stack build
 </code></pre>
 
 <p>If you want to run the test suite, stack can do that too: <code>stack test</code>.</p>
+<h3 id="install-via-homebrew-mac-os-x">Install via Homebrew (Mac OS X)</h3>
+<p>You can use the Homebrew package manager to install PostgREST on Mac</p>
+<pre><code class="bash"># Ensure brew is up to date
+brew update
+
+# Check for any problems with brew's setup
+brew doctor
+
+# Install the postgrest package
+brew install postgrest
+</code></pre>
+
+<p>This will automatically install PostgreSQL as a dependency (see the <a href="#installing-postgresql">Installing PostgreSQL</a> section for setup instructions). The process tends to take around 15 minutes to install the package and its dependencies.</p>
+<p>After installation completes, the tool is added to your $PATH and can be used from anywhere with:</p>
+<pre><code class="bash">postgrest --help
+</code></pre>
+
 <h3 id="installing-postgresql">Installing PostgreSQL</h3>
 <p>To use PostgREST you will need an underlying database. You can use something like Amazon <a href="https://aws.amazon.com/rds/">RDS</a> but installing your own locally is cheaper and more convenient for development.</p>
 <ul>
