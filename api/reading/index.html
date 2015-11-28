@@ -240,16 +240,16 @@ in a one-level deep route. For instance the full contents of a table
 </code></pre>
 
 <p>There are no <code>deeply/nested/routes</code>. Each route provides <code>OPTIONS</code>,
-<code>GET</code>, <code>POST</code>, <code>PUT</code>, <code>PATCH</code>, and <code>DELETE</code> verbs depending entirely
+<code>GET</code>, <code>POST</code>, <code>PATCH</code>, and <code>DELETE</code> verbs depending entirely
 on database permissions.</p>
 <div class="admonition note">
   <p class="admonition-title">Design Consideration</p>
 
   <p>Why not provide nested routes? Many APIs allow nesting to
   retrieve related information, such as <code>/films/1/director</code>.
-  We offer a more flexible mechanism instead to embed related
-  information, including many-to-many relationships. This is covered
-  in the section about Embedding.</p>
+  We offer a more flexible mechanism (inspired by GraphQL) to embed
+  related information. It can handle one-to-many and many-to-many
+  relationships. This is covered in the section about Embedding.</p>
 </div>
 
 <h3 id="stored-procedures">Stored Procedures</h3>
@@ -264,7 +264,7 @@ API endpoint supports only POST which executes the function.</p>
 
 <p>PostgREST supports calling procedures with <a href="http://www.postgresql.org/docs/9.4/static/sql-syntax-calling-funcs.html#SQL-SYNTAX-CALLING-FUNCS-NAMED">named
 arguments</a>.
-To do so include a JSON object in the request payload and each
+Include a JSON object in the request payload and each
 key/value of the object will become an argument.</p>
 <div class="admonition note">
   <p class="admonition-title">Design Consideration</p>
@@ -427,7 +427,7 @@ count total using a <code>Prefer</code> header as:</p>
 <pre><code>Prefer: count=none
 </code></pre>
 
-<p>So the PostgREST response will be something like:</p>
+<p>With count suppressed the PostgREST response will look like:</p>
 <pre><code>Range-Unit: items
 Content-Range → 0-14/*
 </code></pre>
@@ -437,7 +437,7 @@ Content-Range → 0-14/*
 a foreign key called <code>client_id</code>. When listing projects through the
 API you can have it embed the client within each project response.
 For example,</p>
-<pre><code class="HTTP">GET /projects?id=eq.1&amp;select=id, name, clients(*)
+<pre><code class="HTTP">GET /projects?id=eq.1&amp;select=id, name, clients{*}
 </code></pre>
 
 <p>Notice this is the same <code>select</code> keyword which is used to choose
@@ -447,7 +447,12 @@ list of columns inside the parens, or asterisk to request all
 columns.</p>
 <p>The embedding works for 1-N, N-1, and N-N relationships. That means
 you could also ask for a client and all their projects:</p>
-<pre><code class="HTTP">GET /clients?id=eq.42&amp;select=id, name, projects(*)
+<pre><code class="HTTP">GET /clients?id=eq.42&amp;select=id, name, projects{*}
+</code></pre>
+
+<p>In the examples above we asked for all columns in the embedded resource
+but the the select query is recursive. You could for instance specify</p>
+<pre><code class="HTTP">GET /foo?select=x, y, bar{z, w, baz{*}}
 </code></pre>
 
 <h3 id="response-format">Response Format</h3>
@@ -467,7 +472,8 @@ be Object Relational Mapping.</p>
 <code>/stories</code>, <code>/stories?genre=eq.mystery</code>, <code>/stories?id=eq.1</code>. They
 are all filtering a bigger array. However you might want the
 last one to return a single JSON object, not an array with one
-element. There is currently an open issue to enable this.</p>
+element. To request a singular response send the header
+<code>Prefer: plurality=singular</code>.</p>
 <h3 id="data-schema">Data Schema</h3>
 <p>As well as issuing a <code>GET /</code> to obtain a list of the tables, views,
 and stored procedures available, you can get more information about

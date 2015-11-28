@@ -202,8 +202,6 @@
         
             <li><a href="#building-from-source">Building from Source</a></li>
         
-            <li><a href="#install-via-homebrew-mac-os-x">Install via Homebrew (Mac OS X)</a></li>
-        
             <li><a href="#installing-postgresql">Installing PostgreSQL</a></li>
         
     
@@ -216,7 +214,7 @@
 <p>The <a href="https://github.com/begriffs/postgrest/releases/latest">release page</a> has precompiled binaries for Mac OS X and 64-bit Ubuntu. Next extract the tarball and run the binary inside with no arguments to see usage instructions:</p>
 <pre><code class="sh"># Untar the release (available at https://github.com/begriffs/postgrest/releases/latest)
 
-$ tar zxf postgrest-0.2.12.0-osx.tar.xz
+$ tar zxf postgrest-[version]-[platform].tar.xz
 
 # Try running it
 $ ./postgrest
@@ -242,38 +240,28 @@ $ ./postgrest
 <p>When a prebuilt binary does not exist for your system you can build the project from source. You'll also need to do this if you want to help with development. <a href="https://github.com/commercialhaskell/stack">Stack</a> makes it easy. It will install any necessary Haskell dependencies on your system.</p>
 <ul>
 <li><a href="https://github.com/commercialhaskell/stack#how-to-install">Install Stack</a> for your platform</li>
-<li>Build the project</li>
+</ul>
+<pre><code class="bash">#ubuntu example
+wget -q -O- https://s3.amazonaws.com/download.fpcomplete.com/ubuntu/fpco.key | sudo apt-key add -
+echo 'deb http://download.fpcomplete.com/ubuntu/trusty stable main'|sudo tee /etc/apt/sources.list.d/fpco.list
+sudo apt-get update &amp;&amp; sudo apt-get install stack -y
+</code></pre>
+
+<ul>
+<li>Build &amp; install in one step</li>
 </ul>
 <pre><code class="bash">git clone https://github.com/begriffs/postgrest.git
 cd postgrest
-stack build
+sudo stack install --install-ghc --local-bin-path /usr/local/bin
 </code></pre>
 
 <ul>
 <li>Run the server</li>
 </ul>
-<pre><code class="bash">stack exec postgrest -- arg1 arg2
-# ... your arguments after the double dashes
+<pre><code class="bash">postgrest dbconnectionstring arg1 arg2
 </code></pre>
 
 <p>If you want to run the test suite, stack can do that too: <code>stack test</code>.</p>
-<h3 id="install-via-homebrew-mac-os-x">Install via Homebrew (Mac OS X)</h3>
-<p>You can use the Homebrew package manager to install PostgREST on Mac</p>
-<pre><code class="bash"># Ensure brew is up to date
-brew update
-
-# Check for any problems with brew's setup
-brew doctor
-
-# Install the postgrest package
-brew install postgrest
-</code></pre>
-
-<p>This will automatically install PostgreSQL as a dependency (see the <a href="#installing-postgresql">Installing PostgreSQL</a> section for setup instructions). The process tends to take around 15 minutes to install the package and its dependencies.</p>
-<p>After installation completes, the tool is added to your $PATH and can be used from anywhere with:</p>
-<pre><code class="bash">postgrest --help
-</code></pre>
-
 <h3 id="installing-postgresql">Installing PostgreSQL</h3>
 <p>To use PostgREST you will need an underlying database. You can use something like Amazon <a href="https://aws.amazon.com/rds/">RDS</a> but installing your own locally is cheaper and more convenient for development.</p>
 <ul>

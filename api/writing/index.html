@@ -202,8 +202,6 @@
         
             <li><a href="#bulk-insertion">Bulk Insertion</a></li>
         
-            <li><a href="#upsertion">Upsertion</a></li>
-        
             <li><a href="#bulk-updates">Bulk Updates</a></li>
         
             <li><a href="#deletion">Deletion</a></li>
@@ -239,9 +237,12 @@ the server side.</p>
 <li>❌ Cannot be cached or prefetched</li>
 <li>❌ Not idempotent</li>
 </ul>
-<p>While regular insertion uses JSON to encode the value, bulk insertion
-uses CSV. Simply post to a table route with <code>Content-Type: text/csv</code>
-and include the names of the columns as the first row. For instance</p>
+<p>You can POST a JSON array or CSV to insert multiple rows in a single
+HTTP request. Note that using CSV requires less parsing on the server
+and is <strong>much faster</strong>.</p>
+<p>Example of CSV bulk insert. Simply post to a table route with
+<code>Content-Type: text/csv</code> and include the names of the columns as
+the first row. For instance</p>
 <pre><code class="HTTP">POST /people
 name,age,height
 J Doe,62,70
@@ -251,37 +252,28 @@ Jonas,10,55
 <p>An empty field (<code>,,</code>) is coerced to an empty string and the reserved
 word <code>NULL</code> is mapped to the SQL null value. Note that there should
 be no spaces between the column names and commas.</p>
-<p>The server sends a multipart response for bulk insertions. Each part
-contains a Location header with URL of each created resource.</p>
-<pre><code class="HTTP">Content-Type: application/json
-Location: /festival?name=eq.Venice%20Film%20Festival
-
-
---postgrest_boundary
-Content-Type: application/json
-Location: /festival?name=eq.Cannes%20Film%20Festival
+<p>Example of JSON bulk insert. Send an array:</p>
+<pre><code class="HTTP">POST /people
+[
+  { &quot;name&quot;: &quot;J Doe&quot;, &quot;age&quot;: 62, &quot;height&quot;: 70 },
+  { &quot;name&quot;: &quot;Janus&quot;, &quot;age&quot;: 10, &quot;height&quot;: 55 }
+]
 </code></pre>
 
-<h3 id="upsertion">Upsertion</h3>
-<ul>
-<li>❌ Cannot be cached or prefetched</li>
-<li>✅ Idempotent</li>
-</ul>
-<p>To insert or update a single row use the <code>PUT</code> verb on a properly
-filtered table url:</p>
-<pre><code class="HTTP">PUT /table_name?primary_key=eq.foo
-{ &quot;col1&quot;: &quot;value1&quot;, &quot;col2&quot;: &quot;value2&quot; }
-</code></pre>
-
-<p>The request must satisfy two things. First all columns must be
-specified (because a default value might be a changing value which
-would violate idempotence). Second the URL must match the URL you
-would use to get the value of the resource. This means that all
-primary key columns must be included in the filter (there are more
-than one when the primary key is compound).</p>
 <p>If you would like to get the full object back in the response to
 your request, include the header <code>Prefer: return=representation</code>.
-It will of match exactly the object you sent though.</p>
+Chances are you only want certain information back, though, like
+created ids. You can pass a <code>select</code> parameter to affect the shape
+of the response (further documented in the <a href="../../api/reading/">reading</a>
+page). For instance</p>
+<pre><code class="HTTP">POST /people?select=id
+[...]
+</code></pre>
+
+<p>returns something like</p>
+<pre><code class="json">[ { &quot;id&quot;: 1 }, { &quot;id&quot;: 2 } ]
+</code></pre>
+
 <h3 id="bulk-updates">Bulk Updates</h3>
 <ul>
 <li>❌ Cannot be cached or prefetched</li>
@@ -309,7 +301,7 @@ basic field replacements, and not at all "incorrect."</p>
 </ul>
 <p>Simply use the <code>DELETE</code> verb. All recors that match your filter
 will be removed. For instance deleting inactive users:</p>
-<pre><code class="HTTP">DELETE /user?active=eq.false
+<pre><code class="HTTP">DELETE /user?active=is.false
 </code></pre>
 
 <h3 id="protecting-dangerous-actions">Protecting Dangerous Actions</h3>
