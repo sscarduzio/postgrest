@@ -157,6 +157,12 @@
 </li>
 
                         
+                            
+<li >
+    <a href="../../examples/blog/">Multi-Tenant Blog</a>
+</li>
+
+                        
                         </ul>
                     </li>
                 
@@ -403,6 +409,10 @@ comma-separated list of columns and directions:</p>
 <pre><code class="HTTP">GET /people?order=age.nullsfirst
 </code></pre>
 
+<p>You can also use <a href="http://www.postgresql.org/docs/current/interactive/xfunc-sql.html#XFUNC-SQL-COMPOSITE-FUNCTIONS">computed
+columns</a>
+to order the results, even though the computed
+columns will not appear in the output.</p>
 <h3 id="limiting-and-pagination">Limiting and Pagination</h3>
 <h4 id="pagination-by-limit-offset">Pagination by Limit-Offset</h4>
 <p>PostgREST uses HTTP range headers for limiting and describing the

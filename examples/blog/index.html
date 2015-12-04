@@ -6,11 +6,11 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         
         <meta name="author" content="Joe Nelson">
-        <link rel="canonical" href="http://postgrest.com/api/writing/">
+        <link rel="canonical" href="http://postgrest.com/examples/blog/">
         <link rel="shortcut icon" href="../../../../favicon.ico">
         
 
-	<title>Writing - PostgREST</title>
+	<title>Multi-Tenant Blog - PostgREST</title>
 
         <link href="../../css/bootstrap-custom.min.css" rel="stylesheet">
         <link href="../../css/font-awesome-4.0.3.css" rel="stylesheet">
@@ -81,19 +81,19 @@
                 
                 
                 
-                    <li class="dropdown active">
+                    <li class="dropdown">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown">API <b class="caret"></b></a>
                         <ul class="dropdown-menu">
                         
                             
 <li >
-    <a href="../reading/">Reading</a>
+    <a href="../../api/reading/">Reading</a>
 </li>
 
                         
                             
-<li class="active">
-    <a href="./">Writing</a>
+<li >
+    <a href="../../api/writing/">Writing</a>
 </li>
 
                         
@@ -141,25 +141,25 @@
                 
                 
                 
-                    <li class="dropdown">
+                    <li class="dropdown active">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown">Examples <b class="caret"></b></a>
                         <ul class="dropdown-menu">
                         
                             
 <li >
-    <a href="../../examples/start/">Getting Started</a>
+    <a href="../start/">Getting Started</a>
 </li>
 
                         
                             
 <li >
-    <a href="../../examples/users/">User Management</a>
+    <a href="../users/">User Management</a>
 </li>
 
                         
                             
-<li >
-    <a href="../../examples/blog/">Multi-Tenant Blog</a>
+<li class="active">
+    <a href="./">Multi-Tenant Blog</a>
 </li>
 
                         
@@ -178,12 +178,12 @@
                 </li>
                 
                     <li >
-                        <a rel="next" href="../reading/">
+                        <a rel="next" href="../users/">
                             <i class="fa fa-arrow-left"></i> Previous
                         </a>
                     </li>
-                    <li >
-                        <a rel="prev" href="../../admin/security/">
+                    <li class="disabled">
+                        <a rel="prev" >
                             Next <i class="fa fa-arrow-right"></i>
                         </a>
                     </li>
@@ -208,127 +208,167 @@
                 <div class="col-md-3"><div class="bs-sidebar hidden-print affix well" role="complementary">
     <ul class="nav bs-sidenav">
     
-        <li class="main active"><a href="#updating-data">Updating Data</a></li>
+        <li class="main active"><a href="#multi-tenant-blog">Multi-Tenant Blog</a></li>
         
-            <li><a href="#record-creation">Record Creation</a></li>
+            <li><a href="#adding-blog-specific-tables">Adding Blog-Specific Tables</a></li>
         
-            <li><a href="#bulk-insertion">Bulk Insertion</a></li>
+            <li><a href="#permissions">Permissions</a></li>
         
-            <li><a href="#bulk-updates">Bulk Updates</a></li>
+            <li><a href="#example-client-queries">Example client queries</a></li>
         
-            <li><a href="#deletion">Deletion</a></li>
-        
-            <li><a href="#protecting-dangerous-actions">Protecting Dangerous Actions</a></li>
+            <li><a href="#conclusion">Conclusion</a></li>
         
     
     </ul>
 </div></div>
                 <div class="col-md-9" role="main">
 
-<h2 id="updating-data">Updating Data</h2>
-<h3 id="record-creation">Record Creation</h3>
+<h2 id="multi-tenant-blog">Multi-Tenant Blog</h2>
+<p>In our blog app there will be anonymous users and authors. Each
+author can create and edit their own posts, and read (but not edit)
+the posts of other authors. Anonymous users cannot edit anything
+but can sign up for author accounts. Authors can also post comments
+on articles.</p>
+<p>This example builds off the previous one. We had previously created
+a signup and login system on top of JWT. We'll use this auth system
+for the blog. <strong>Run the SQL in the previous example</strong> first, before
+continuing with this example.</p>
+<p>For your convenience, the complete sql for the blog demo is
+<a href="https://github.com/begriffs/postgrest/blob/master/schema-templates/blog.sql">here</a>.
+You can try it out in this <a href="https://github.com/ruslantalpa/blogdemo">vagrant
+image</a> as well.</p>
+<h3 id="adding-blog-specific-tables">Adding Blog-Specific Tables</h3>
+<p>Storing the posts and comments is this simple. The comments do not
+form a tree, they are linear under a post.</p>
+<pre><code class="sql">create table if not exists
+posts (
+  id         bigserial primary key,
+  title      text not null,
+  body       text not null,
+  author     text not null references basic_auth.users (email)
+               on delete restrict on update cascade
+               default basic_auth.current_email(),
+  created_at timestamptz not null default current_date
+);
+
+create table if not exists
+comments (
+  id         bigserial primary key,
+  body       text not null,
+  author     text not null references basic_auth.users (email)
+               on delete restrict on update cascade
+               default basic_auth.current_email(),
+  post       bigint not null references posts (id)
+               on delete cascade on update cascade,
+  created_at timestamptz not null default current_date
+);
+</code></pre>
+
+<h3 id="permissions">Permissions</h3>
+<p>Basic table-level permissions. We'll add an the <code>authenticator</code>
+role which can't do anything itself other than switch into other
+roles as directed by JWT.</p>
+<pre><code class="sql">create role anon;
+create role author;
+create role authenticator noinherit;
+grant anon, author to authenticator;
+
+grant usage on schema public, basic_auth to anon, author;
+
+-- anon can create new logins and can read comments/posts
+grant insert on table basic_auth.users, basic_auth.tokens to anon;
+grant select on table pg_authid, basic_auth.users, posts, comments to anon;
+grant execute on function
+  login(text,text),
+  request_password_reset(text),
+  reset_password(text,uuid,text),
+  signup(text, text)
+  to anon;
+
+-- authors can edit comments/posts
+grant select, insert, update, delete
+  on basic_auth.tokens, basic_auth.users to anon, author;
+grant select, insert, update, delete
+  on table users, posts, comments to author;
+grant usage, select on sequence posts_id_seq, comments_id_seq to author;
+</code></pre>
+
+<p>To ensure that authors cannot edit each others' posts and comments
+we'll use <a href="http://www.postgresql.org/docs/9.5/static/ddl-rowsecurity.html">row-level
+security</a>.
+Note that it requires PostgreSQL 9.5 or later.</p>
+<pre><code class="sql">ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
+drop policy if exists authors_eigenedit on posts;
+create policy authors_eigenedit on posts
+  using (true)
+  with check (
+    author = basic_auth.current_email()
+  );
+
+ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+drop policy if exists authors_eigenedit on comments;
+create policy authors_eigenedit on comments
+  using (true)
+  with check (
+    author = basic_auth.current_email()
+  );
+</code></pre>
+
+<p>Finally we need to modify the <code>users</code> view from the previous example.
+This is because all authors share a single db role. We could have
+chosen to assign a new role for every author (all inheriting from
+<code>author</code>) but we choose to tell them apart by their email addresses.
+The addition below prevents authors from seeing each others' info
+in the <code>users</code> view.</p>
+<pre><code class="diff">  create or replace view users as
+  select actual.role as role,
+         '***'::text as pass,
+         actual.email as email,
+         actual.verified as verified
+  from basic_auth.users as actual,
+       (select rolname
+          from pg_authid
+         where pg_has_role(current_user, oid, 'member')
+       ) as member_of
+  where actual.role = member_of.rolname
++   and (
++     actual.role &lt;&gt; 'author'
++     or email = basic_auth.current_email()
++   );
+</code></pre>
+
+<h3 id="example-client-queries">Example client queries</h3>
 <ul>
-<li>❌ Cannot be cached or prefetched</li>
-<li>❌ Not idempotent</li>
+<li>Top ten most recent posts</li>
 </ul>
-<p>To create a row in a database table post a JSON object whose keys
-are the names of the columns you would like to create. Missing keys
-will be set to default values when applicable.</p>
-<pre><code class="HTTP">POST /table_name
-{ &quot;col1&quot;: &quot;value1&quot;, &quot;col2&quot;: &quot;value2&quot; }
+<pre><code class="HTTP">  GET /posts?order=created_at.desc
+  Range: 0-9
 </code></pre>
 
-<p>The response will include a <code>Location</code> header describing where to
-find the new object. If you would like to get the full object back
-in the response to your request, include the header <code>Prefer:
-return=representation</code>. That way you won't have to make another
-HTTP call to discover properties that may have been filled in on
-the server side.</p>
-<h3 id="bulk-insertion">Bulk Insertion</h3>
 <ul>
-<li>❌ Cannot be cached or prefetched</li>
-<li>❌ Not idempotent</li>
+<li>Single post (randomly chose id=1) with its comments</li>
 </ul>
-<p>You can POST a JSON array or CSV to insert multiple rows in a single
-HTTP request. Note that using CSV requires less parsing on the server
-and is <strong>much faster</strong>.</p>
-<p>Example of CSV bulk insert. Simply post to a table route with
-<code>Content-Type: text/csv</code> and include the names of the columns as
-the first row. For instance</p>
-<pre><code class="HTTP">POST /people
-name,age,height
-J Doe,62,70
-Jonas,10,55
+<pre><code class="HTTP">  GET /posts?id=eq.1&amp;select=*,comments{*}
 </code></pre>
 
-<p>An empty field (<code>,,</code>) is coerced to an empty string and the reserved
-word <code>NULL</code> is mapped to the SQL null value. Note that there should
-be no spaces between the column names and commas.</p>
-<p>Example of JSON bulk insert. Send an array:</p>
-<pre><code class="HTTP">POST /people
-[
-  { &quot;name&quot;: &quot;J Doe&quot;, &quot;age&quot;: 62, &quot;height&quot;: 70 },
-  { &quot;name&quot;: &quot;Janus&quot;, &quot;age&quot;: 10, &quot;height&quot;: 55 }
-]
-</code></pre>
-
-<p>If you would like to get the full object back in the response to
-your request, include the header <code>Prefer: return=representation</code>.
-Chances are you only want certain information back, though, like
-created ids. You can pass a <code>select</code> parameter to affect the shape
-of the response (further documented in the <a href="../../api/reading/">reading</a>
-page). For instance</p>
-<pre><code class="HTTP">POST /people?select=id
-[...]
-</code></pre>
-
-<p>returns something like</p>
-<pre><code class="json">[ { &quot;id&quot;: 1 }, { &quot;id&quot;: 2 } ]
-</code></pre>
-
-<h3 id="bulk-updates">Bulk Updates</h3>
 <ul>
-<li>❌ Cannot be cached or prefetched</li>
-<li>❌ Not idempotent</li>
+<li>Add a new post</li>
 </ul>
-<p>To change parts of a resource or resources use the <code>PATCH</code> verb.
-For instance, here is how to mark all young people as children.</p>
-<pre><code class="HTTP">PATCH /people?age=lt.13
-{
-  &quot;person_type&quot;: &quot;child&quot;
-}
+<pre><code class="HTTP">  POST /posts
+  Authorization: Bearer [JWT TOKEN]
+
+  {
+    &quot;title&quot;: &quot;My first post&quot;,
+    &quot;body&quot;: &quot;Meh, forgot what I wanted to say.&quot;
+  }
 </code></pre>
 
-<p>This affects any rows matched by the url param filters, overwrites
-any fields specified in in the payload JSON and leaves the other
-fields unaffected. Note that although the payload is not in the
-JSON patch format specified by
-<a href="https://tools.ietf.org/html/rfc6902">RFC6902</a>, HTTP does not specify
-which patch format to use. Our format is more pleasant, meant for
-basic field replacements, and not at all "incorrect."</p>
-<h3 id="deletion">Deletion</h3>
-<ul>
-<li>❌ Cannot be cached or prefetched</li>
-<li>✅ Idempotent</li>
-</ul>
-<p>Simply use the <code>DELETE</code> verb. All recors that match your filter
-will be removed. For instance deleting inactive users:</p>
-<pre><code class="HTTP">DELETE /user?active=is.false
-</code></pre>
-
-<h3 id="protecting-dangerous-actions">Protecting Dangerous Actions</h3>
-<p>Notice that it is very easy to delete or update many records at
-once. In fact forgetting a filter will affect an entire table!</p>
-<div class="admonition warning">
-    <p class="admonition-title">Invitation to Contribute</p>
-
-    <p>We would like to investigate nginx rules to guard dangerous
-    actions, perhaps requiring a confirmation header or query param
-    to perform the action.</p>
-
-    <p>You're invited to research this option and contribute to
-    this documentation.</p>
-</div></div>
+<h3 id="conclusion">Conclusion</h3>
+<p>Voilà, a blog API. Most of the code ended up being for defining
+security. Once you have set up an authentication system, the code
+to do application specific things like blog posts and comments is
+short.  All the front-end routes and verbs are created automatically
+for you.</p></div>
             
         </div>
 
