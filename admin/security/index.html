@@ -210,15 +210,13 @@
     
         <li class="main active"><a href="#security">Security</a></li>
         
-            <li><a href="#ssl">SSL</a></li>
-        
             <li><a href="#database-roles">Database Roles</a></li>
-        
-            <li><a href="#json-web-tokens">JSON Web Tokens</a></li>
         
             <li><a href="#row-level-security">Row-Level Security</a></li>
         
             <li><a href="#building-auth-on-top-of-jwt">Building Auth on top of JWT</a></li>
+        
+            <li><a href="#ssl">SSL</a></li>
         
     
     </ul>
@@ -226,16 +224,68 @@
                 <div class="col-md-9" role="main">
 
 <h2 id="security">Security</h2>
-<h3 id="ssl">SSL</h3>
+<p>PostgREST is designed to keep the database at the center of API
+security. All authorization happens through database roles and
+permissions. It is PostgREST's job to <em>authenticate</em> requests --
+i.e. verify that a client is who they say they are -- and then let
+the database <em>authorize</em> client actions.</p>
+<p>We use <a href="http://jwt.io/">JSON Web Tokens</a> to authenticate API requests.
+As you'll recall a JWT contains a list of cryptographically signed
+claims. PostgREST cares specifically about a claim called <code>role</code>.
+When request contains a valid JWT with a role claim PostgREST will
+switch to the database role with that name for the duration of the
+HTTP request.  If the client included no (or an invalid) JWT then
+PostgREST selects the "anonymous role" which is specified by a
+command line arguments to the server on startup.</p>
+<pre><code class="js">{
+  &quot;role&quot;: &quot;jdoe123&quot;
+}
+
+// Encoded as JWT with a secret of &quot;secret&quot; this becomes
+// eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiamRvZTEyMyJ9.X_ZeWSS9qsKDCDczv8C-GE2fccrPQjOh_ALMZJa5jsU
+</code></pre>
+
+<p>Using JWT allows us to authenticate with external services. A login
+service needs merely to share a JWT encryption secret with the
+PostgREST server. The secret is also a server command line option.</p>
+<p>It is even possible to generate JWT from inside a stored procedure
+in your database. Any SQL stored procedure that returns a type whose
+name ends in <code>jwt_claims</code> will have its return value encoded into
+JWT.  See the <a href="http://postgrest.com/examples/users/">User Management</a>
+example for details.</p>
 <h3 id="database-roles">Database Roles</h3>
-<h3 id="json-web-tokens">JSON Web Tokens</h3>
-<h4 id="issuing-via-sql-procedures">Issuing via sql procedures</h4>
+<p>Suppose you start the server like this:</p>
+<pre><code class="bash">postgrest postgres://foo@localhost:5432/mydb --anonymous anon
+</code></pre>
+
+<p>This means that <code>foo</code> is the so-called <em>authenticator role</em> and
+<code>anon</code> is the anonymous role. When a new HTTP request arrives at the
+server the latter is connected to the database as user <code>foo</code>. If
+no JWT is present, or if it is invalid, or if it does not contain
+the role claim then the server changes to the anonymous role with
+the query</p>
+<pre><code class="sql">SET LOCAL ROLE anon;
+</code></pre>
+
+<p>Otherwise it sets the role to that specified by JWT. For security
+your authenticator role should have access to nothing except the
+ability to become other users. Supposing you have three roles, one
+for anonymous users, one for authors, and another for the authenticator,
+you would set it up like this</p>
+<pre><code class="sql">CREATE ROLE authenticator NOINHERIT;
+CREATE ROLE anon;
+CREATE ROLE author;
+
+GRANT anon, author TO authenticator;
+</code></pre>
+
 <h3 id="row-level-security">Row-Level Security</h3>
 <h4 id="simulated-postgresql-95">Simulated - PostgreSQL &lt;9.5</h4>
 <h4 id="real-postgresql-95">Real - PostgreSQL &gt;=9.5</h4>
 <h3 id="building-auth-on-top-of-jwt">Building Auth on top of JWT</h3>
 <h4 id="basic-auth">Basic Auth</h4>
-<h4 id="github-sign-in">Github Sign-in</h4></div>
+<h4 id="github-sign-in">Github Sign-in</h4>
+<h3 id="ssl">SSL</h3></div>
             
         </div>
 

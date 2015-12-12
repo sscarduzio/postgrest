@@ -407,6 +407,7 @@ comma-separated list of columns and directions:</p>
 
 <p>If you care where nulls are sorted, add <code>nullsfirst</code> or <code>nullslast</code>:</p>
 <pre><code class="HTTP">GET /people?order=age.nullsfirst
+GET /people?order=age.desc.nullslast
 </code></pre>
 
 <p>You can also use <a href="http://www.postgresql.org/docs/current/interactive/xfunc-sql.html#XFUNC-SQL-COMPOSITE-FUNCTIONS">computed
