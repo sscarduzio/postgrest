@@ -6,11 +6,11 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         
         <meta name="author" content="Joe Nelson">
-        <link rel="canonical" href="http://postgrest.com/examples/blog/">
+        <link rel="canonical" href="http://postgrest.com/examples/external_auth/">
         <link rel="shortcut icon" href="../../../../favicon.ico">
         
 
-	<title>Multi-Tenant Blog - PostgREST</title>
+	<title>External Authentication - PostgREST</title>
 
         <link href="../../css/bootstrap-custom.min.css" rel="stylesheet">
         <link href="../../css/font-awesome-4.0.3.css" rel="stylesheet">
@@ -158,14 +158,14 @@
 
                         
                             
-<li class="active">
-    <a href="./">Multi-Tenant Blog</a>
+<li >
+    <a href="../blog/">Multi-Tenant Blog</a>
 </li>
 
                         
                             
-<li >
-    <a href="../external_auth/">External Authentication</a>
+<li class="active">
+    <a href="./">External Authentication</a>
 </li>
 
                         
@@ -190,12 +190,12 @@
                 </li>
                 
                     <li >
-                        <a rel="next" href="../users/">
+                        <a rel="next" href="../blog/">
                             <i class="fa fa-arrow-left"></i> Previous
                         </a>
                     </li>
                     <li >
-                        <a rel="prev" href="../external_auth/">
+                        <a rel="prev" href="../python-requests-jwt/">
                             Next <i class="fa fa-arrow-right"></i>
                         </a>
                     </li>
@@ -220,13 +220,17 @@
                 <div class="col-md-3"><div class="bs-sidebar hidden-print affix well" role="complementary">
     <ul class="nav bs-sidenav">
     
-        <li class="main active"><a href="#multi-tenant-blog">Multi-Tenant Blog</a></li>
+        <li class="main active"><a href="#external-authentication">External Authentication</a></li>
         
-            <li><a href="#adding-blog-specific-tables">Adding Blog-Specific Tables</a></li>
+            <li><a href="#sharing-the-jwt-secret">Sharing the JWT Secret</a></li>
         
-            <li><a href="#permissions">Permissions</a></li>
+            <li><a href="#user-model">User Model</a></li>
         
-            <li><a href="#example-client-queries">Example client queries</a></li>
+            <li><a href="#generating-a-jwt">Generating a JWT</a></li>
+        
+            <li><a href="#orders-endpoint">Orders Endpoint</a></li>
+        
+            <li><a href="#using-the-jwt">Using the JWT</a></li>
         
             <li><a href="#conclusion">Conclusion</a></li>
         
@@ -235,139 +239,172 @@
 </div></div>
                 <div class="col-md-9" role="main">
 
-<h2 id="multi-tenant-blog">Multi-Tenant Blog</h2>
-<p>In our blog app there will be anonymous users and authors. Each
-author can create and edit their own posts, and read (but not edit)
-the posts of other authors. Anonymous users cannot edit anything
-but can sign up for author accounts. Authors can also post comments
-on articles.</p>
-<p>This example builds off the previous previous <a href="../users/">User Management</a>
-one. We had previously created a signup and login system on top of
-JWT. We'll use this auth system for the blog. <strong>Run the SQL in the
-previous example</strong> first, before continuing with this example.</p>
-<p>For your convenience, the complete sql for the blog demo is
-<a href="https://github.com/begriffs/postgrest/blob/master/schema-templates/blog.sql">here</a>.
-You can try it out in this <a href="https://github.com/ruslantalpa/blogdemo">vagrant
-image</a> as well.</p>
-<h3 id="adding-blog-specific-tables">Adding Blog-Specific Tables</h3>
-<p>Storing the posts and comments is this simple. The comments do not
-form a tree, they are linear under a post.</p>
-<pre><code class="sql">create table if not exists
-posts (
-  id         bigserial primary key,
-  title      text not null,
-  body       text not null,
-  author     text not null references basic_auth.users (email)
-               on delete restrict on update cascade
-               default basic_auth.current_email(),
-  created_at timestamptz not null default current_date
+<h2 id="external-authentication">External Authentication</h2>
+<p>API clients authenticate with <a href="http://jwt.io">JSON Web Tokens</a>.
+PostgREST does not support any other authentication mechanism
+directly, but they can be built on top. In this demo we will build
+a system that works with an external authentication server
+and integrates with a PostgREST server by sharing the same JWT secret.</p>
+<p>For a better understanding of JWT and PostgREST authentication system you should read
+the <a href="../users/">User Management</a> example as well.</p>
+<p>I'll use a <a href="http://rubyonrails.org">Rails</a> application using <a href="https://github.com/plataformatec/devise">Devise</a>
+just to make the example more concrete, but this could be replicated for
+any other external authentication system using the same principles.
+In case Rails is not your cup of tea you can continue reading and
+just skip the Ruby code samples. I'll also assume
+the use of JQuery for some client-side code samples for the sake of simplicity.</p>
+<p>I won't delve into Devise authentication details, for this would require a tutorial on its own,
+so I'm assuming that the reader's authentication system is already working.</p>
+<h3 id="sharing-the-jwt-secret">Sharing the JWT Secret</h3>
+<p>Allowing a third party to generate valid JWTs for your PostgREST API
+is just a matter of sharing a secret. So you need to give your authenticator
+software the same secret that was used in your API server under the <code>--jwt-secret</code>
+parameter.</p>
+<p>This could be done easly using environment variables. You set a <code>JWT_SECRET</code> variable
+in the environment where you run your rails app and it will be accessible in the global
+variable <code>ENV['JWT_SECRET']</code>.</p>
+<h3 id="user-model">User Model</h3>
+<p>We will map each user in this example to two database roles.
+So our application users are either <code>admin</code> or <code>customer</code>.
+If they are just visitors (not logged in) to our website they will be <code>anonymous</code>.
+One way of mapping users is to add a field in our users table indicating their database role.
+I'll add a text field called role to my users table:</p>
+<pre><code class="sql">ALTER TABLE users ADD role text NOT NULL DEFAULT 'customer';
+</code></pre>
+
+<p>Besides the main user that PostgREST uses to connect to PostgreSQL
+and the anonymous user, we will need two aditional roles for our example:</p>
+<ul>
+<li>admin - to be used by users that access all the system rows.</li>
+<li>customer - to be used when user has restricted access to database rows.</li>
+</ul>
+<p>Bellow we have the commands to create all roles that will be used:</p>
+<pre><code class="sql">CREATE USER authenticator NOINHERIT;
+CREATE ROLE anonymous;
+CREATE ROLE admin;
+CREATE ROLE customer;
+
+GRANT customer, admin, anonymous TO authenticator;
+</code></pre>
+
+<h3 id="generating-a-jwt">Generating a JWT</h3>
+<p>Several libraries are available to generate JWT, you will find a very handy list in <a href="http://jwt.io">their website</a>
+under <strong>Libraries</strong>.
+To continue our Rails example I'll use the ruby library <a href="https://github.com/garyf/json_web_token">json_web_token</a>.</p>
+<p>In order to make the gem available in my Rails project I add the following line to my Gemfile:</p>
+<pre><code>gem 'json_web_token'
+</code></pre>
+
+<p>Then we create a Rails controller to serve JWTs for my authenticated users.
+For this I just open a file <code>app/controllers/api_tokens_controller.rb</code> with the content:</p>
+<pre><code class="ruby">class ApiTokensController &lt; ApplicationController
+  TOKEN_TTL = 1.hour
+
+  def show
+    unless ENV['JWT_SECRET'].present?
+      return render json: {error: &quot;you need to have JWT_SECRET configured to get an API token&quot;}, status: 500
+    end
+
+    unless current_user.present?
+      return render json: {error: &quot;only authenticated users can request the API token&quot;}, status: 401
+    end
+
+    expires_in TOKEN_TTL, public: false
+    render json: {token: jwt}, status: 200
+  end
+
+  private
+  def jwt
+    JsonWebToken.sign(claims, key: ENV['JWT_SECRET'])
+  end
+
+  def claims
+    # This token will expire 1 hour after being issued
+    {
+      role: current_user.role,
+      user_id: current_user.id.to_s,
+      exp: (Time.now + TOKEN_TTL).to_i
+    }
+  end
+end
+</code></pre>
+
+<div class="admonition note">
+    <p class="admonition-title">Token Time to Live</p>
+    <p>
+    In the code above we leverage the HTTP time based cache headers to expire the
+    endpoint cache at the same time as the token. In this example we have a token
+    that will be refresh one hour after its issuing time.
+    That's why both are based on the <code>TOKEN_TTL</code> constant.
+    </p>
+</div>
+
+<p>We also need to create a route in the <code>config/routes.rb</code> file:</p>
+<pre><code class="ruby">resource :api_token, only: [:show]
+</code></pre>
+
+<p>Now, any authenticated user in our rails application can request an api_token making a GET
+request to <code>/api_token</code>. This endpoint will return a json object with one property
+whose value is the token the API requests should use.</p>
+<h3 id="orders-endpoint">Orders Endpoint</h3>
+<p>Here is how to create a view to generate an endpoint <code>/orders</code> filtered by
+the logged in user:</p>
+<pre><code class="sql">ALTER DATABASE mydb SET postgrest.claims.user_id TO '';
+
+CREATE OR REPLACE FUNCTION current_user_id()
+RETURNS integer
+STABLE
+LANGUAGE SQL
+AS $$
+    SELECT nullif(current_setting('postgrest.claims.user_id'), '')::integer;
+$$;
+
+CREATE SCHEMA private;
+
+CREATE TABLE private.orders (
+    id serial primary key,
+    user_id int references users,
+    created_at timestamp not null default current_timestamp,
+    updated_at timestamp not null default current_timestamp
 );
 
-create table if not exists
-comments (
-  id         bigserial primary key,
-  body       text not null,
-  author     text not null references basic_auth.users (email)
-               on delete restrict on update cascade
-               default basic_auth.current_email(),
-  post       bigint not null references posts (id)
-               on delete cascade on update cascade,
-  created_at timestamptz not null default current_date
-);
+CREATE VIEW orders AS
+SELECT
+    id, user_id, created_at, updated_at
+FROM
+    private.orders o
+WHERE
+    current_user = 'admin' OR o.user_id = current_user_id();
 </code></pre>
 
-<h3 id="permissions">Permissions</h3>
-<p>On top of the <code>authenticator</code> and <code>anon</code> access granted in the
-previous example, blogs have an <code>author</code> role with extra permissions.</p>
-<pre><code class="sql">create role author;
-grant author to authenticator;
+<div class="admonition note">
+    <p class="admonition-title">DRY priviledge checking conditions</p>
+    <p>
+    You can encapsulate conditions that will be commonly used to check for privileges while reading a database row.
+    We used a function <code>current_user_id()</code> but we could add more conditions to functions
+    as the system becomes more complex.<br/>
+    Remeber to mark your functions as <code>STABLE</code> so that PostgreSQL can inline then while planning the query.
+    </p>
+</div>
 
-grant usage on schema public, basic_auth to author;
-
--- authors can edit comments/posts
-grant select, insert, update, delete
-  on basic_auth.tokens, basic_auth.users to author;
-grant select, insert, update, delete
-  on table users, posts, comments to author;
-grant usage, select on sequence posts_id_seq, comments_id_seq to author;
+<h3 id="using-the-jwt">Using the JWT</h3>
+<p>Now whenever you are authenticated in your Rails application you can use some Javascript
+ code to get the token and use it:</p>
+<pre><code class="javascript">$.getJSON('/api_json').done(function(data){
+    $.ajax('/orders', {'Authorization': 'Bearer ' + data.token}).done(function(data){
+        console.log('Visible Orders: ', data);
+    })
+}).fail(function(){
+    console.log('Error fetching API token');
+})
 </code></pre>
 
-<p>To ensure that authors cannot edit each others' posts and comments
-we'll use <a href="http://www.postgresql.org/docs/9.5/static/ddl-rowsecurity.html">row-level
-security</a>.
-Note that it requires PostgreSQL 9.5 or later.</p>
-<pre><code class="sql">ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
-drop policy if exists authors_eigenedit on posts;
-create policy authors_eigenedit on posts
-  using (true)
-  with check (
-    author = basic_auth.current_email()
-  );
-
-ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
-drop policy if exists authors_eigenedit on comments;
-create policy authors_eigenedit on comments
-  using (true)
-  with check (
-    author = basic_auth.current_email()
-  );
-</code></pre>
-
-<p>Finally we need to modify the <code>users</code> view from the previous example.
-This is because all authors share a single db role. We could have
-chosen to assign a new role for every author (all inheriting from
-<code>author</code>) but we choose to tell them apart by their email addresses.
-The addition below prevents authors from seeing each others' info
-in the <code>users</code> view.</p>
-<pre><code class="diff">  create or replace view users as
-  select actual.role as role,
-         '***'::text as pass,
-         actual.email as email,
-         actual.verified as verified
-  from basic_auth.users as actual,
-       (select rolname
-          from pg_authid
-         where pg_has_role(current_user, oid, 'member')
-       ) as member_of
-  where actual.role = member_of.rolname
-+   and (
-+     actual.role &lt;&gt; 'author'
-+     or email = basic_auth.current_email()
-+   );
-</code></pre>
-
-<h3 id="example-client-queries">Example client queries</h3>
-<ul>
-<li>Top ten most recent posts</li>
-</ul>
-<pre><code class="HTTP">  GET /posts?order=created_at.desc
-  Range: 0-9
-</code></pre>
-
-<ul>
-<li>Single post (randomly chose id=1) with its comments</li>
-</ul>
-<pre><code class="HTTP">  GET /posts?id=eq.1&amp;select=*,comments{*}
-</code></pre>
-
-<ul>
-<li>Add a new post</li>
-</ul>
-<pre><code class="HTTP">  POST /posts
-  Authorization: Bearer [JWT TOKEN]
-
-  {
-    &quot;title&quot;: &quot;My first post&quot;,
-    &quot;body&quot;: &quot;Meh, forgot what I wanted to say.&quot;
-  }
-</code></pre>
-
+<p>We could also store the token to avoid having to fetch it again in the same page.</p>
 <h3 id="conclusion">Conclusion</h3>
-<p>Voilà, a blog API. Most of the code ended up being for defining
-security. Once you have set up an authentication system, the code
-to do application specific things like blog posts and comments is
-short.  All the front-end routes and verbs are created automatically
-for you.</p></div>
+<p>This section explained the implementation details for building an
+external authentication system working with PostgREST.
+With the previous <a href="../users/">User Management</a> example this should give a clearer
+idea of how to set up authentication for your API.</p></div>
             
         </div>
 

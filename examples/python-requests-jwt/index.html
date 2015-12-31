@@ -6,11 +6,11 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         
         <meta name="author" content="Joe Nelson">
-        <link rel="canonical" href="http://postgrest.com/admin/deployment/">
+        <link rel="canonical" href="http://postgrest.com/examples/python-requests-jwt/">
         <link rel="shortcut icon" href="../../../../favicon.ico">
         
 
-	<title>Deployment - PostgREST</title>
+	<title>Python Client - PostgREST</title>
 
         <link href="../../css/bootstrap-custom.min.css" rel="stylesheet">
         <link href="../../css/font-awesome-4.0.3.css" rel="stylesheet">
@@ -102,37 +102,37 @@
                 
                 
                 
-                    <li class="dropdown active">
+                    <li class="dropdown">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown">Admin <b class="caret"></b></a>
                         <ul class="dropdown-menu">
                         
                             
 <li >
-    <a href="../security/">Security</a>
+    <a href="../../admin/security/">Security</a>
 </li>
 
                         
                             
 <li >
-    <a href="../versioning/">Versioning</a>
+    <a href="../../admin/versioning/">Versioning</a>
 </li>
 
                         
                             
 <li >
-    <a href="../migration/">Migration</a>
-</li>
-
-                        
-                            
-<li class="active">
-    <a href="./">Deployment</a>
+    <a href="../../admin/migration/">Migration</a>
 </li>
 
                         
                             
 <li >
-    <a href="../performance/">Performance</a>
+    <a href="../../admin/deployment/">Deployment</a>
+</li>
+
+                        
+                            
+<li >
+    <a href="../../admin/performance/">Performance</a>
 </li>
 
                         
@@ -141,37 +141,37 @@
                 
                 
                 
-                    <li class="dropdown">
+                    <li class="dropdown active">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown">Examples <b class="caret"></b></a>
                         <ul class="dropdown-menu">
                         
                             
 <li >
-    <a href="../../examples/start/">Getting Started</a>
+    <a href="../start/">Getting Started</a>
 </li>
 
                         
                             
 <li >
-    <a href="../../examples/users/">User Management</a>
+    <a href="../users/">User Management</a>
 </li>
 
                         
                             
 <li >
-    <a href="../../examples/blog/">Multi-Tenant Blog</a>
+    <a href="../blog/">Multi-Tenant Blog</a>
 </li>
 
                         
                             
 <li >
-    <a href="../../examples/external_auth/">External Authentication</a>
+    <a href="../external_auth/">External Authentication</a>
 </li>
 
                         
                             
-<li >
-    <a href="../../examples/python-requests-jwt/">Python Client</a>
+<li class="active">
+    <a href="./">Python Client</a>
 </li>
 
                         
@@ -190,12 +190,12 @@
                 </li>
                 
                     <li >
-                        <a rel="next" href="../migration/">
+                        <a rel="next" href="../external_auth/">
                             <i class="fa fa-arrow-left"></i> Previous
                         </a>
                     </li>
-                    <li >
-                        <a rel="prev" href="../performance/">
+                    <li class="disabled">
+                        <a rel="prev" >
                             Next <i class="fa fa-arrow-right"></i>
                         </a>
                     </li>
@@ -220,22 +220,55 @@
                 <div class="col-md-3"><div class="bs-sidebar hidden-print affix well" role="complementary">
     <ul class="nav bs-sidenav">
     
-        <li class="main active"><a href="#deployment">Deployment</a></li>
+        <li class="main active"><a href="#python-client-for-postgrest-api">Python Client for PostgREST API</a></li>
         
-            <li><a href="#heroku">Heroku</a></li>
+            <li><a href="#setup-postgresql">Setup PostgreSQL</a></li>
         
-            <li><a href="#debian">Debian</a></li>
+            <li><a href="#setup-postgrest">Setup PostgREST</a></li>
+        
+            <li><a href="#setup-python-client">Setup Python Client</a></li>
+        
+            <li><a href="#python-client-functions">Python Client Functions</a></li>
+        
+            <li><a href="#login">Login</a></li>
+        
+            <li><a href="#construct-jwt-auth">Construct JWT Auth</a></li>
+        
+            <li><a href="#get-result-size">Get Result Size</a></li>
+        
+            <li><a href="#get-range">Get Range</a></li>
         
     
     </ul>
 </div></div>
                 <div class="col-md-9" role="main">
 
-<h2 id="deployment">Deployment</h2>
-<h3 id="heroku">Heroku</h3>
-<h4 id="getting-started">Getting Started</h4>
-<h4 id="using-amazon-rds">Using Amazon RDS</h4>
-<h3 id="debian">Debian</h3></div>
+<h2 id="python-client-for-postgrest-api">Python Client for PostgREST API</h2>
+<h3 id="setup-postgresql">Setup PostgreSQL</h3>
+<p>This code relies on setting up the PostgreSQL auth functions and grants correctly first. Follow <a href="http://postgrest.com/examples/users/">these instructions</a>.</p>
+<p>After completing the PostgreSQL configuration, be sure to create a user with email, password, role, and verified flag. We'll use that user to login in the code below.</p>
+<h3 id="setup-postgrest">Setup PostgREST</h3>
+<p>Next, setup PostgREST according to the documentation <a href="../here">http://postgrest.com/install/server/</a>.</p>
+<h3 id="setup-python-client">Setup Python Client</h3>
+<p>Finally, we'll install and configure the python client. Follow the instructions in the <a href="https://github.com/davidthewatson/postgrest_python_requests_client/blob/master/README.md">README</a>. Be sure to set the <a href="https://github.com/davidthewatson/postgrest_python_requests_client/blob/master/config.in#L3-L5">credentials</a> and <a href="https://github.com/davidthewatson/postgrest_python_requests_client/blob/master/config.in#L7-L9">urls</a> in config.py.</p>
+<h3 id="python-client-functions">Python Client Functions</h3>
+<p>There are four primary functions to the python client:</p>
+<ul>
+<li>login</li>
+<li>construct_jwt_auth</li>
+<li>get_result_size</li>
+<li>get_range</li>
+</ul>
+<p>The <em>login</em> and <em>construct_jwt_auth</em> functions will be required for any REST client using a PostgREST server, since a JWT auth instance is presumed.</p>
+<p>The <em>get_result_size</em> and <em>get_range</em> functions are designed specifically for result sets where pagination is required. You can certainly use them for a single page result set that does not require pagination, but that may be overkill.</p>
+<h3 id="login">Login</h3>
+<p>The <a href="https://github.com/davidthewatson/postgrest_python_requests_client/blob/master/client.py#L12-L17">login function</a> takes email and password strings (credentials.email and credentials.password, respectively from the config.py) and return the response.</p>
+<h3 id="construct-jwt-auth">Construct JWT Auth</h3>
+<p>The <a href="https://github.com/davidthewatson/postgrest_python_requests_client/blob/master/client.py#L20-L23">construct_jwt_auth</a> function takes the auth response returned by the login function, retrieves the token in the response, and returns a JWT auth instance to the caller. The JWT auth instance can then be used for successive calls to the same PostgREST service.</p>
+<h3 id="get-result-size">Get Result Size</h3>
+<p>The <a href="https://github.com/davidthewatson/postgrest_python_requests_client/blob/master/client.py#L26-L30">get_result_size</a> function takes a JWT auth instance calls the URL at urls.data, extracts the size of the result set from the response object and returns the size.</p>
+<h3 id="get-range">Get Range</h3>
+<p>The <a href="https://github.com/davidthewatson/postgrest_python_requests_client/blob/master/client.py#L26-L30">get_range</a> function takes a beginning range, ending range, page size, and JWT auth instance, gets only that range of the available result set and returns JSON for that result set.</p></div>
             
         </div>
 

@@ -163,6 +163,18 @@
 </li>
 
                         
+                            
+<li >
+    <a href="../../examples/external_auth/">External Authentication</a>
+</li>
+
+                        
+                            
+<li >
+    <a href="../../examples/python-requests-jwt/">Python Client</a>
+</li>
+
+                        
                         </ul>
                     </li>
                 
@@ -450,10 +462,11 @@ Content-Range → 0-14/*
 </code></pre>
 
 <h3 id="embedding-foreign-entities">Embedding Foreign Entities</h3>
-<p>Suppose you have a <code>projects</code> table which references <code>clients</code> through
-a foreign key called <code>client_id</code>. When listing projects through the
-API you can have it embed the client within each project response.
-For example,</p>
+<p>To help you make fewer requests, PostgREST allows the embedding of
+traditional SQL relationships into a response. Suppose you have a
+<code>projects</code> table which references <code>clients</code> through a foreign key
+called <code>client_id</code>. When listing projects through the API you can
+have it embed the client within each project response. For example,</p>
 <pre><code class="HTTP">GET /projects?id=eq.1&amp;select=id, name, clients{*}
 </code></pre>
 
@@ -472,6 +485,26 @@ but the the select query is recursive. You could for instance specify</p>
 <pre><code class="HTTP">GET /foo?select=x, y, bar{z, w, baz{*}}
 </code></pre>
 
+<p>You can select not only using table names, but also column names!
+To embed the same foreign key row from our client example earlier
+you could do the following:</p>
+<pre><code class="HTTP">GET /projects?id=eq.1&amp;select=id, name, client_id{*}
+</code></pre>
+
+<p>In the response there will be a <code>client_id</code> object containing all
+the data for that row.</p>
+<p>However, a <code>client_id</code> object doesn't make a lot of sense, so you
+could do one of two things. Create a view which renames <code>client_id</code>
+to just <code>client</code> (this is the hard way), or just try <code>client{*}</code>
+in the select parameter! PostgREST supports smart ducktype checking
+for common foreign key names, so if your column name ends with
+<code>_id</code>, <code>_fk</code>, or any variation of the two (including camelcase)
+you can embed a row with just the name's beginning.</p>
+<p>So for a complete example:</p>
+<pre><code class="HTTP">GET /projects?id=eq.1&amp;select=id, name, client{*}
+</code></pre>
+
+<p>Would embed in the <code>client</code> key the row referenced with <code>client_id</code>.</p>
 <h3 id="response-format">Response Format</h3>
 <p>Query responses default to JSON but you can get them in CSV as well. Just make your request with the header</p>
 <pre><code class="HTTP">Accept: text/csv

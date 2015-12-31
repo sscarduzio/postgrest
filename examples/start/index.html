@@ -163,6 +163,18 @@
 </li>
 
                         
+                            
+<li >
+    <a href="../external_auth/">External Authentication</a>
+</li>
+
+                        
+                            
+<li >
+    <a href="../python-requests-jwt/">Python Client</a>
+</li>
+
+                        
                         </ul>
                     </li>
                 
@@ -311,7 +323,7 @@ Cannes Film Festival
 <p>In Postman it will look like this</p>
 <p><img alt="Festival bulk insert in postman" src="../../img/post-festivals.png" /></p>
 <p>Notice that the post type is <code>raw</code> and that <code>Content-Type: text/csv</code> set in the Headers tab.</p>
-<p>The server returns HTTP 201 Created. Because we inserted more than one item at once there is no <code>Location</code> header in the response. However sometimes you want to learn more about items which you just inserted. To have the server include the full restuls include the header <code>Prefer: return=representation</code>.</p>
+<p>The server returns HTTP 201 Created. Because we inserted more than one item at once there is no <code>Location</code> header in the response. However sometimes you want to learn more about items which you just inserted. To have the server include the full results, include the header <code>Prefer: return=representation</code>.</p>
 <p>At this point if you send a GET request to <code>/festival</code> it should return</p>
 <pre><code class="json">[
   {
