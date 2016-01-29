@@ -253,7 +253,6 @@ GET /clients?id=eq.42&select=id, name, projects{*}
 In the examples above we asked for all columns in the embedded resource
 but the the select query is recursive. You could for instance specify
 
-
 ```HTTP
 GET /foo?select=x, y, bar{z, w, baz{*}}
 ```
@@ -284,6 +283,13 @@ GET /projects?id=eq.1&select=id, name, client{*}
 ```
 
 Would embed in the `client` key the row referenced with `client_id`.
+
+<div class="admonition note">
+    <p class="admonition-title">Design Consideration</p>
+
+    <p>In order for this feature to work as expected after a change in the DB schema, PostgREST currently requires a restart</p>
+</div>
+
 
 ### Response Format
 

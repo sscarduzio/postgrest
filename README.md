@@ -71,7 +71,7 @@ by
 * Reusing prepared statements
 * Keeping a pool of db connections
 * Using the PostgreSQL binary protocol
-* Being stateless to allow horizontal scaling
+* Being stateless(*) to allow horizontal scaling
 
 Ultimately the server (when load balanced) is constrained by database
 performance. This may make it inappropriate for very large traffic
@@ -82,6 +82,9 @@ supports Postgres clustering for higher performance.
 
 Other optimizations are possible, and some are outlined in the
 [Future Features](#future-features).
+
+
+(*) PostgREST currently requires a restart for the feature [embedding foreign entities](http://postgrest.com/api/reading/#embedding-foreign-entities) to work as expected after the schema has been changed.
 
 ### Security
 
