@@ -599,9 +599,9 @@ CREATE TABLE "ghostBusters" (
 		"escapeId" integer not null references "Escap3e;"("so6meIdColumn")
 );
 
-CREATE TABLE "withUnique" (
+CREATE TABLE "withColumnConstraints" (
     uni text UNIQUE,
-    extra text
+    extra text NOT NULL
 );
 
 
